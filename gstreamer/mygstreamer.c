@@ -736,6 +736,7 @@ int main(int argc, char *argv[]) {
     int autoconnect = 0;
 
     int num_x = 6, num_y = 4;
+    gchar *backend;
 
     GOptionEntry option_entries[] = {
         { "fullscreen", 'f', G_OPTION_FLAG_IN_MAIN, G_OPTION_ARG_NONE,
@@ -752,6 +753,10 @@ int main(int argc, char *argv[]) {
             &num_x, "Number of buttons in a row", "6" },
         { "rows", 0, G_OPTION_FLAG_IN_MAIN, G_OPTION_ARG_INT,
             &num_y, "Number of rows", "4" },
+        { "backend", 0, G_OPTION_FLAG_IN_MAIN, G_OPTION_ARG_STRING,
+            &backend, "Audio backend to use (alsa, pulse, jack)", "alsa" },
+        { "autoconnect", 'a', G_OPTION_FLAG_IN_MAIN, G_OPTION_ARG_NONE,
+            &autoconnect, "Autoconnect JACK ports", NULL },
         { NULL, ' ', 0, 0, NULL, NULL, NULL }
     };
 
@@ -788,7 +793,18 @@ int main(int argc, char *argv[]) {
     gtk_grid_set_row_spacing (GTK_GRID (main_grid), 30);
     gtk_grid_set_column_spacing (GTK_GRID (main_grid), 30);
 
+    enum interface_type iface_type;
+    if (!g_strcmp0("jack", backend)) {
+	    iface_type = IFACE_JACK;
+    } else if (!g_strcmp0("pulse", backend)) {
+	    iface_type = IFACE_PULSE;
+    } else {
+	    iface_type = IFACE_ALSA;
+    }
+
+
     for (int i=0; i < num_players; i++) {
+	data[i].iface_type = iface_type;
         GtkWidget *playerUI = init_player (&data[i], i, autoconnect);
         data[i].mainwindow = main_window;
 

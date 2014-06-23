@@ -15,6 +15,12 @@
         GST_CLOCK_TIME_IS_VALID (t) ? \
         (guint) ((((GstClockTime)(t)) / GST_SECOND) % 60) : 99
 
+enum interface_type {
+  IFACE_ALSA,
+  IFACE_PULSE,
+  IFACE_JACK
+};
+
 
 /* Structure to contain all our information, so we can pass it around */
 typedef struct _CustomData {
@@ -45,6 +51,9 @@ typedef struct _CustomData {
     gulong slider_update_signal_id; /* Signal ID for the slider update signal */
 
     gulong file_selection_signal_id;
+
+    enum interface_type iface_type; /* Backend to use */
+
 
     GstState state;                 /* Current state of the pipeline */
     gint64 duration;                /* Duration of the clip, in nanoseconds */

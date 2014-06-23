@@ -103,13 +103,22 @@ void audio_pseudo_stop(CustomData *data) {
     audio_pause_player (data);
 }
 
-static gboolean link_elements_with_filter (GstElement *element1, GstElement *element2) {
+static gboolean link_elements_with_filter (enum interface_type iface_type,
+                                           GstElement *element1,
+                                           GstElement *element2) {
     gboolean link_ok;
     GstCaps *caps;
+    gchar *convert_to;
+
+    if (IFACE_JACK == iface_type) {
+      convert_to = "audio/x-raw-float";
+    } else {
+      convert_to = "audio/x-raw-int";
+    }
 
     caps = gst_caps_new_simple (
 #if GST_VERSION_MAJOR == (0)
-            "audio/x-raw-int",
+            convert_to,
 #else
             "audio/x-raw",
 #endif
@@ -132,13 +141,20 @@ static gboolean link_elements_with_filter (GstElement *element1, GstElement *ele
 int init_audio(CustomData *data, guint decknumber, int autoconnect) {
     data->duration = GST_CLOCK_TIME_NONE;
 
+    gchar *iface_type = "invalid";
+    switch (data->iface_type) {
+    case IFACE_ALSA: iface_type = "alsasink"; break;
+    case IFACE_PULSE: iface_type = "pulsesink"; break;
+    case IFACE_JACK: iface_type = "jackaudiosink"; break;
+    }
+
     /* Create the elements */
     data->pipeline = gst_pipeline_new("test");
 
     data->uridecodebin = create_gst_element ("uridecodebin", "uri_decodebin");
     data->audioconvert = create_gst_element ("audioconvert", "audio_convert");
     data->audioresample = create_gst_element ("audioresample", "audio_resample");
-    data->jackaudiosink = create_gst_element ("alsasink", "jack_audiosink");
+    data->jackaudiosink = create_gst_element (iface_type, "jack_audiosink");
 
     if (!data->pipeline || !data->uridecodebin || !data->audioresample ||
             !data->jackaudiosink) {
@@ -151,8 +167,7 @@ int init_audio(CustomData *data, guint decknumber, int autoconnect) {
             data->audioconvert, data->audioresample, data->jackaudiosink, NULL);
 
 
-#if 0
-    {
+    if (IFACE_JACK == data->iface_type) {
         /* settings that control interaction with jackd */
         gchar *name;
         name = g_strdup_printf("player-%u", decknumber);
@@ -168,7 +183,6 @@ Enum "GstJackConnect" Default: 1, "auto"
 */
         g_object_set (data->jackaudiosink, "connect", autoconnect, NULL);
     }
-#endif
 
     if (TRUE != gst_element_link_many (data->audioresample, data->jackaudiosink, NULL)) {
         g_printerr ("Problems linking bins\n");
@@ -176,8 +190,9 @@ Enum "GstJackConnect" Default: 1, "auto"
     }
 
     /* Force the pipe to stereo */
-    if (TRUE != link_elements_with_filter (data->audioconvert,
-                data->audioresample)) {
+    if (TRUE != link_elements_with_filter (data->iface_type,
+                                           data->audioconvert,
+                                           data->audioresample)) {
         exit (1);
     }
 
